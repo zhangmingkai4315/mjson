@@ -2,7 +2,6 @@ package mjson
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"reflect"
 	"sync"
@@ -156,7 +155,7 @@ func (merger *MergeManager) mergeItems(a interface{}, b interface{}, prefix stri
 					vec = reflect.Append(vec, reflect.ValueOf(val))
 				}
 
-				vec = merger.mergeSlice(vec)
+				vec, _ = merger.mergeSlice(vec, mergeKey)
 
 				reflect.Indirect(result).Field(i).Set(vec)
 			} else {
@@ -168,10 +167,28 @@ func (merger *MergeManager) mergeItems(a interface{}, b interface{}, prefix stri
 	return result, nil
 }
 
-func (merger *MergeManager) mergeSlice(vec reflect.Value) reflect.Value {
+func (merger *MergeManager) mergeSlice(val reflect.Value, prefix string) (reflect.Value, error) {
 	// do merge slice job
+	if val.Kind() != reflect.Slice {
+		return reflect.Value{}, errors.New("input arguments must be slice type")
+	}
+	inputStructType := val.Type().Elem()
+	var uniqueKeyName string
+	for i := 0; i < inputStructType.NumField(); i++ {
+		f := inputStructType.Field(i)
+		mergeTag, _ := inputStructType.Field(i).Tag.Lookup("merge")
+		if mergeTag == "unique" {
+			uniqueKeyName = f.Name
+		}
+	}
+	// if no unique key then return without further group merge
+	if uniqueKeyName == "" {
+		return val, nil
+	}
 
-	return vec
+	// group result base the same key
+
+	return val, nil
 }
 
 func (merger *MergeManager) RegistType(structType reflect.Type, prefix string) error {
@@ -183,7 +200,7 @@ func (merger *MergeManager) RegistType(structType reflect.Type, prefix string) e
 		varName := structType.Field(i).Name
 		varType := structType.Field(i).Type
 		mergeTag, _ := structType.Field(i).Tag.Lookup("merge")
-		fmt.Printf("%v %v merge=%s\n", varName, varType, mergeTag)
+		//fmt.Printf("%v %v merge=%s\n", varName, varType, mergeTag)
 		if varType.Kind() == reflect.Struct {
 			merger.RegistType(varType, structName+"_"+varName)
 		} else {
