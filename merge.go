@@ -54,7 +54,10 @@ func (merger *MergeManager) Push(item interface{}) {
 
 func (merger *MergeManager) mergeContainerData() error {
 	merger.locker.Lock()
-	defer merger.locker.Unlock()
+	defer func() {
+		defer merger.locker.Unlock()
+		merger.container = make([]interface{}, 0)
+	}()
 	if merger.readyForMerge == false {
 		return errors.New("no registered struct for merge")
 	}
@@ -70,14 +73,14 @@ func (merger *MergeManager) mergeContainerData() error {
 	}
 	var index = 2
 	for index < len(merger.container) {
-		if err != nil {
-			return err
-		}
 		temp, err = merger.mergeItems(temp, merger.container[index], "")
+		if err != nil {
+			break
+		}
 		index++
 	}
 	merger.Output <- temp
-	merger.container = make([]interface{}, 0)
+
 	return nil
 }
 
@@ -127,8 +130,7 @@ func (merger *MergeManager) mergeItems(a interface{}, b interface{}, prefix stri
 		if fieldType.Kind() == reflect.Struct {
 			data, err := merger.mergeItems(valA.Field(i).Interface(), valB.Field(i).Interface(), mergeKey)
 			if err != nil {
-				fmt.Printf("error: %s", err)
-				break
+				return reflect.Value{}, err
 			}
 			reflect.Indirect(result).Field(i).Set(reflect.Indirect(data))
 			continue
@@ -141,10 +143,35 @@ func (merger *MergeManager) mergeItems(a interface{}, b interface{}, prefix stri
 			if err != nil {
 				return reflect.Value{}, err
 			}
-			reflect.Indirect(result).Field(i).Set(reflect.ValueOf(mergeResult))
+			if valA.Field(i).Kind() == reflect.Slice {
+				// mergeResult []interface{} to []struct type
+				vec := reflect.MakeSlice(valA.Field(i).Type(), 0, 0)
+
+				//vec.Elem().Set(reflect.ValueOf(mergeResult))
+				slice, ok := mergeResult.([]interface{}) //
+				if ok != true {
+					continue
+				}
+				for _, val := range slice {
+					vec = reflect.Append(vec, reflect.ValueOf(val))
+				}
+
+				vec = merger.mergeSlice(vec)
+
+				reflect.Indirect(result).Field(i).Set(vec)
+			} else {
+				reflect.Indirect(result).Field(i).Set(reflect.ValueOf(mergeResult))
+			}
+
 		}
 	}
 	return result, nil
+}
+
+func (merger *MergeManager) mergeSlice(vec reflect.Value) reflect.Value {
+	// do merge slice job
+
+	return vec
 }
 
 func (merger *MergeManager) RegistType(structType reflect.Type, prefix string) error {
