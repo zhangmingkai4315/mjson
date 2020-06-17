@@ -3,8 +3,21 @@ package main
 import (
 	"fmt"
 	"github.com/zhangmingkai4315/mjson"
+	"reflect"
 	"time"
 )
+
+type testStat struct {
+	Type string `json:"type" merge:"unique"`
+	QueryCount int `json:"queryCount" merge:"int_plus"`
+	ResolveAvg float64 `json:"resolveAvg" merge:"float_avg"`
+}
+
+type DNSInfo struct {
+	ID string   `json:"id" merge:"unique"`
+	TestStat testStat `json:"stat" merge:"struct"`
+}
+
 
 
 type Person struct{
@@ -15,24 +28,49 @@ type Person struct{
 }
 func main(){
 	manager := mjson.NewMergeManager(time.Duration(1)*time.Second)
-	manager.RegistType(Person{})
-	p1 := &Person{
-		Name:      "Mike",
-		Age:       10,
-		Locations: []string{"beijing"},
-		Salary:    10000,
+
+	manager.RegistType(reflect.TypeOf(DNSInfo{}),"")
+
+	d1 := &DNSInfo{
+		ID:       "1",
+		TestStat: testStat{
+			Type:       "abc",
+			QueryCount: 10,
+			ResolveAvg: 0.4,
+		},
 	}
-	p2 := &Person{
-		Name:      "Alice",
-		Age:       20,
-		Locations: []string{"shanghai"},
-		Salary:    14000,
+	d2 := &DNSInfo{
+		ID:       "1",
+		TestStat: testStat{
+			Type:       "abc",
+			QueryCount: 20,
+			ResolveAvg: 0.5,
+		},
 	}
-	manager.Push(p1)
-	manager.Push(p2)
+	manager.Push(d1)
+	manager.Push(d2)
 
 	data := <-manager.Output
 	fmt.Printf("%v", data)
+
+	//manager.RegistType(Person{})
+	//p1 := &Person{
+	//	Name:      "Mike",
+	//	Age:       10,
+	//	Locations: []string{"beijing"},
+	//	Salary:    10000,
+	//}
+	//p2 := &Person{
+	//	Name:      "Alice",
+	//	Age:       20,
+	//	Locations: []string{"shanghai"},
+	//	Salary:    14000,
+	//}
+	//manager.Push(p1)
+	//manager.Push(p2)
+	//
+	//data := <-manager.Output
+	//fmt.Printf("%v", data)
 
 
 	//e := reflect.ValueOf(&p1).Elem()
