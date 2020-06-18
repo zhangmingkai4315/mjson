@@ -5,7 +5,13 @@ import (
 	"github.com/zhangmingkai4315/mjson"
 	"reflect"
 	"time"
+
 )
+
+type info struct {
+	Total int `json:"total" merge:"int_plus"`
+}
+
 
 type testStat struct {
 	Type       string  `json:"type" merge:"unique"`
@@ -15,6 +21,7 @@ type testStat struct {
 
 type DNSInfo struct {
 	ID       string     `json:"id"`
+	Info     info       `json:"info" merge:"struct"`
 	TestStat []testStat `json:"stat" merge:"[]struct"`
 }
 
@@ -33,6 +40,7 @@ func main() {
 
 	d1 := &DNSInfo{
 		ID: "1",
+		Info: info{Total:20},
 		TestStat: []testStat{
 			{
 				Type:       "abc",
@@ -47,6 +55,7 @@ func main() {
 	}
 	d2 := &DNSInfo{
 		ID: "1",
+		Info: info{Total:60},
 		TestStat: []testStat{
 			{
 				Type:       "abc",
@@ -61,6 +70,7 @@ func main() {
 	}
 	d3 := &DNSInfo{
 		ID: "1",
+		Info: info{Total:20},
 		TestStat: []testStat{
 			{
 				Type:       "def",

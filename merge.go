@@ -4,11 +4,12 @@ import (
 	"errors"
 	"log"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 )
 
-// MergeManager hold received data and re
+// MergeManager
 type MergeManager struct {
 	locker        sync.RWMutex
 	container     reflect.Value
@@ -45,7 +46,6 @@ func NewMergeManager(interval time.Duration, t reflect.Type) (*MergeManager,erro
 			}
 		}
 	}()
-
 	return &mergerManager, nil
 }
 
@@ -64,7 +64,7 @@ func (merger *MergeManager) merge(){
 		log.Printf("Error: %s", err.Error())
 		return
 	}
-	merger.Output <- result
+	merger.Output <- result.Interface()
 }
 
 func (merger *MergeManager) Push(item interface{}) {
@@ -141,19 +141,6 @@ func (merger *MergeManager) mergeItems(valA reflect.Value, valB reflect.Value, p
 			}
 			reflect.Indirect(result).Field(i).Set(reflect.Indirect(data))
 			continue
-			//} else if fieldType.Kind() == reflect.Slice && fieldType.Elem().Kind()== reflect.Struct{
-			//
-			//	appendName := inputStructType.Name()+"_[]"+fieldName
-			//	if prefix != ""{
-			//		appendName = prefix + "_"+ appendName
-			//	}
-			//	data, err := merger.mergeItems(valA.Field(i), valB.Field(i),  appendName)
-			//	if err != nil {
-			//		return reflect.Value{}, err
-			//	}
-			//	reflect.Indirect(result).Field(i).Set(reflect.Indirect(data))
-			//	continue
-			//}
 		}else {
 			mergeFunc, ok := merger.mergeFunc[mergeKey]
 			if ok == false {
@@ -215,7 +202,6 @@ func (merger *MergeManager) mergeSlice(originalSlice reflect.Value, prefix strin
 	}
 
 	// group result base the same key
-
 	groupContainer := make(map[string]reflect.Value)
 
 	for i:= 0; i< originalSlice.Len();i++{
@@ -228,7 +214,26 @@ func (merger *MergeManager) mergeSlice(originalSlice reflect.Value, prefix strin
 	}
 	result:= reflect.MakeSlice(originalSlice.Type(), 0, 0 )
 
-	for _, v := range groupContainer{
+	type sortedGroup struct {
+		key  string
+		data reflect.Value
+	}
+
+	var groupContainerSlice []sortedGroup
+	for k, v := range groupContainer{
+		groupContainerSlice = append(groupContainerSlice, sortedGroup{
+			key:  k,
+			data: v,
+		})
+	}
+
+	sort.Slice(groupContainerSlice, func(i, j int) bool{
+		return groupContainerSlice[i].key < groupContainerSlice[j].key
+	})
+
+
+	for _, data := range groupContainerSlice{
+		v := data.data
 		temp := reflect.MakeSlice(originalSlice.Type(), 0, 0 )
 
 		for i:=0;i<v.Len();i++{
