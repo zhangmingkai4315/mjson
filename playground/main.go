@@ -26,9 +26,10 @@ type Person struct {
 }
 
 func main() {
-	manager := mjson.NewMergeManager(time.Duration(1) * time.Second)
-
-	manager.RegistType(reflect.TypeOf(DNSInfo{}), "")
+	manager, err  := mjson.NewMergeManager(time.Duration(1) * time.Second, reflect.TypeOf(DNSInfo{}))
+	if err != nil{
+		panic(err)
+	}
 
 	d1 := &DNSInfo{
 		ID: "1",
@@ -53,7 +54,7 @@ func main() {
 				ResolveAvg: 1,
 			}, {
 				Type:       "gkj",
-				QueryCount: 10,
+				QueryCount: 50,
 				ResolveAvg: 1,
 			},
 		},
@@ -76,6 +77,6 @@ func main() {
 	manager.Push(d2)
 	manager.Push(d3)
 	data := <-manager.Output
-	fmt.Printf("%v", data)
+	fmt.Printf("%+v", data)
 
 }
